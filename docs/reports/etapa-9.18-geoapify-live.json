@@ -1,0 +1,9 @@
+{
+  "provider": "geoapify",
+  "http_status": 200,
+  "duration_ms": 1870,
+  "result_count": 30,
+  "normalized": true,
+  "failure_type": null,
+  "external_call_attempts": 1
+}

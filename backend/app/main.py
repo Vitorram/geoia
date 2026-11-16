@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.ai_search import router as ai_search_router
 from app.api.routes.health import router as health_router
 from app.api.routes.locations import router as locations_router
 from app.api.routes.places import router as places_router
@@ -15,6 +16,7 @@ app.include_router(health_router)
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(auth_router)
+api_v1_router.include_router(ai_search_router)
 api_v1_router.include_router(users_router)
 api_v1_router.include_router(locations_router)
 api_v1_router.include_router(places_router)

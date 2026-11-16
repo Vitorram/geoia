@@ -22,6 +22,7 @@ class NearbyPlacesRequest(BaseModel):
 
 class NearbyPlace(BaseModel):
     osm_id: str
+    source: str | None = None
     name: str | None = None
     category: PlaceCategory
     latitude: float = Field(ge=-90, le=90)
@@ -32,3 +33,4 @@ class NearbyPlace(BaseModel):
 
 class NearbyPlacesResponse(BaseModel):
     results: list[NearbyPlace]
+    attribution: str | None = None

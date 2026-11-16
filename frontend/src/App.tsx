@@ -4,9 +4,10 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { LocationsPage } from './pages/LocationsPage'
+import { LocationProvider } from './locations/LocationContext'
 
 export function AppRoutes() {
-  return (
+  return <LocationProvider>
     <Routes>
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="/login" element={<LoginPage />} />
@@ -17,5 +18,5 @@ export function AppRoutes() {
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
-  )
+  </LocationProvider>
 }

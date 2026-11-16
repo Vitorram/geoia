@@ -61,9 +61,16 @@ button:disabled { cursor: wait; opacity: .72; }
 .nearby-result-pin { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 10px; background: #eef2e5; color: #637c2b; }
 .nearby-marker { border: 0; background: transparent; }
 .nearby-marker span { display: block; width: 17px; height: 17px; border: 3px solid white; border-radius: 50%; background: #849e45; box-shadow: 0 1px 5px #0007; }
-.nearby-marker-active span { width: 21px; height: 21px; border-color: white; background: #171914; box-shadow: 0 0 0 4px #d8f56a, 0 1px 7px #0008; }
+.nearby-marker-active span { width: 21px; height: 21px; border-color: white; background: #171914; box-shadow: 0 0 0 4px #d8f56a, 0 1px 7px #0008; animation: nearby-marker-pulse 1.7s ease-out infinite; }
+.reference-location-marker { border: 0; background: transparent; }
+.reference-location-marker span { position: absolute; display: block; border-radius: 50%; }
+.reference-marker-halo { inset: 1px; border: 1px solid #809e3caa; background: #d7ef9c88; animation: reference-marker-pulse 2.1s ease-out infinite; }
+.reference-marker-core { inset: 9px; border: 3px solid white; background: #76952e; box-shadow: 0 2px 7px #1b241277; }
+@keyframes nearby-marker-pulse { 50% { box-shadow: 0 0 0 7px #d8f56a99, 0 1px 7px #0008; } }
+@keyframes reference-marker-pulse { 0% { transform: scale(.7); opacity: .8; } 100% { transform: scale(1.2); opacity: 0; } }
+.reference-location-marker:hover,.nearby-marker:hover { z-index: 1000 !important; }
 .geo-map .leaflet-container { background: #f1f1eb; color: #292b25; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-.geo-map .leaflet-tile-pane { filter: saturate(.72) brightness(1.025) contrast(.96); }
+.geo-map .leaflet-tile-pane { filter: saturate(.88) brightness(1.025) contrast(1.01); transition: filter .25s ease; }
 .geo-map .leaflet-control-zoom { overflow: hidden; border: 1px solid #e4e6dc !important; border-radius: 11px; box-shadow: 0 3px 12px #17191416 !important; }
 .geo-map .leaflet-control-zoom a { width: 34px; height: 34px; border: 0 !important; background: #fff; color: #34372e; line-height: 34px; transition: background .15s, color .15s; }
 .geo-map .leaflet-control-zoom a:hover { background: #eef2e5; color: #5c7623; }
@@ -71,6 +78,9 @@ button:disabled { cursor: wait; opacity: .72; }
 .geo-map .leaflet-control-attribution { margin: 0 7px 7px 0; border-radius: 6px; background: #ffffffdf; padding: 3px 6px; color: #66695f; font-size: 10px; }
 .geo-map .leaflet-control-attribution a { color: #526a22; }
 .geo-map .leaflet-marker-icon { filter: drop-shadow(0 2px 2px #15171344); }
+@media (prefers-reduced-motion: reduce) {
+  .nearby-marker-active span,.reference-marker-halo { animation: none; }
+}
 .animate-logo { animation: logo-enter .8s cubic-bezier(.2,.7,.2,1) both; }
 .animate-copy { animation: rise-in .8s .16s cubic-bezier(.2,.7,.2,1) both; }
 .animate-copy-delayed { animation: rise-in .8s .32s cubic-bezier(.2,.7,.2,1) both; }

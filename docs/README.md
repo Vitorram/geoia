@@ -1,3 +1,5 @@
 # Documentação
 
-Espaço reservado para documentação de arquitetura, desenvolvimento e operação do GeoIA.
+Documentação de arquitetura, desenvolvimento e operação do GeoIA.
+
+- [Inicialização do backend no Windows](backend-development.md)

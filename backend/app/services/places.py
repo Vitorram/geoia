@@ -38,6 +38,7 @@ class PlacesDatasetEmpty(Exception):
 
 
 class PlacesProvider(Protocol):
+    attribution: str | None
     async def nearby(self, latitude: float, longitude: float, category: PlaceCategory, radius_m: int) -> list[NearbyPlace]: ...
 
 
@@ -161,6 +162,185 @@ def _address(tags: dict) -> str | None:
     return ", ".join(parts) or None
 
 
+# Mapeamento estrito para as categorias hierárquicas oficiais do Geoapify.
+# Pizza tem categorias próprias; não usamos catering.restaurant genérico.
+GEOAPIFY_CATEGORIES: dict[PlaceCategory, tuple[str, ...]] = {
+    PlaceCategory.PIZZARIA: ("catering.restaurant.pizza", "catering.fast_food.pizza"),
+    PlaceCategory.RESTAURANTE: ("catering.restaurant",),
+    PlaceCategory.CAFETERIA: ("catering.cafe",),
+    PlaceCategory.FARMACIA: ("healthcare.pharmacy",),
+    PlaceCategory.SUPERMERCADO: ("commercial.supermarket",),
+}
+
+GEOAPIFY_ENDPOINT = "https://api.geoapify.com/v2/places"
+
+
+def _geoapify_identifier(properties: dict) -> tuple[str, str]:
+    datasource = properties.get("datasource")
+    datasource = datasource if isinstance(datasource, dict) else {}
+    raw = datasource.get("raw")
+    raw = raw if isinstance(raw, dict) else {}
+    osm_id = raw.get("osm_id", properties.get("osm_id"))
+    osm_type = raw.get("osm_type", properties.get("osm_type"))
+
+    # Alguns formatos retornam "node/123" em vez do par type/id.
+    if isinstance(osm_id, str) and osm_id.startswith(("node/", "way/", "relation/")):
+        return osm_id, "openstreetmap"
+    osm_type = {"n": "node", "w": "way", "r": "relation"}.get(osm_type, osm_type)
+    if osm_type in {"node", "way", "relation"} and isinstance(osm_id, (str, int)):
+        return f"{osm_type}/{osm_id}", "openstreetmap"
+
+    # Geoapify place_id é o identificador do provedor, não um OSM ID.
+    place_id = properties.get("place_id")
+    if isinstance(place_id, str) and place_id.strip():
+        return f"geoapify/{place_id.strip()}", "geoapify"
+    return "", "geoapify"
+
+
+def _geoapify_address(properties: dict) -> str | None:
+    for key in ("formatted", "address_line1"):
+        value = properties.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+class GeoapifyPlacesProvider:
+    """Consulta Places API com filtro circular, chave no header e sem fallback."""
+
+    attribution = "Geoapify Places · © OpenStreetMap contributors"
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self._last_request = 0.0
+        self._cache: OrderedDict[tuple, tuple[float, list[NearbyPlace]]] = OrderedDict()
+
+    async def _throttle(self) -> None:
+        async with self._lock:
+            delay = settings.places_min_interval_seconds - (time.monotonic() - self._last_request)
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self._last_request = time.monotonic()
+
+    async def nearby(self, latitude: float, longitude: float, category: PlaceCategory, radius_m: int) -> list[NearbyPlace]:
+        if category not in GEOAPIFY_CATEGORIES or not (-90 <= latitude <= 90 and -180 <= longitude <= 180) or not (0 < radius_m <= 5000):
+            raise PlacesUnavailable
+        if not settings.geoapify_api_key or not settings.geoapify_api_key.get_secret_value().strip():
+            raise PlacesUnavailable
+
+        key = (round(latitude, 6), round(longitude, 6), category.value, radius_m)
+        now = time.monotonic()
+        cached = self._cache.get(key)
+        if cached and cached[0] > now:
+            self._cache.move_to_end(key)
+            return cached[1]
+        if cached:
+            self._cache.pop(key, None)
+
+        await self._throttle()
+        params = {
+            "categories": ",".join(GEOAPIFY_CATEGORIES[category]),
+            "filter": f"circle:{longitude:.7f},{latitude:.7f},{radius_m}",
+            "bias": f"proximity:{longitude:.7f},{latitude:.7f}",
+            "limit": 30,
+        }
+        try:
+            timeout = settings.places_timeout_seconds
+            async with asyncio.timeout(timeout):
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.get(
+                        GEOAPIFY_ENDPOINT,
+                        params=params,
+                        headers={"X-API-Key": settings.geoapify_api_key.get_secret_value()},
+                    )
+        except (httpx.TimeoutException, TimeoutError):
+            raise PlacesTimeout from None
+        except httpx.HTTPError:
+            raise PlacesUnavailable from None
+
+        if response.status_code == 429:
+            raise PlacesRateLimited(_retry_after_seconds(response.headers.get("Retry-After")))
+        if response.status_code == 504 or response.status_code == 408:
+            raise PlacesTimeout
+        if response.status_code >= 500 or response.status_code in (401, 403):
+            raise PlacesUnavailable
+        if response.status_code != 200:
+            raise PlacesUnavailable
+
+        try:
+            payload = response.json()
+            features = payload["features"]
+            if not isinstance(features, list):
+                raise ValueError
+            results = self._parse(features, latitude, longitude, category, radius_m)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise PlacesUnavailable from None
+
+        ttl = settings.places_cache_ttl_seconds
+        if ttl:
+            self._cache[key] = (time.monotonic() + ttl, results)
+            self._cache.move_to_end(key)
+            while len(self._cache) > 256:
+                self._cache.popitem(last=False)
+        return results
+
+    @staticmethod
+    def _parse(features: list, latitude: float, longitude: float, category: PlaceCategory, radius_m: int) -> list[NearbyPlace]:
+        results: list[NearbyPlace] = []
+        allowed_categories = set(GEOAPIFY_CATEGORIES[category])
+        for feature in features:
+            if not isinstance(feature, dict):
+                continue
+            properties = feature.get("properties")
+            properties = properties if isinstance(properties, dict) else {}
+            categories = properties.get("categories")
+            categories = categories if isinstance(categories, list) else []
+            returned_categories = {item for item in categories if isinstance(item, str)}
+            matches_category = bool(allowed_categories & returned_categories)
+            if category in {PlaceCategory.RESTAURANTE, PlaceCategory.CAFETERIA}:
+                parent = next(iter(allowed_categories))
+                matches_category = matches_category or any(item.startswith(f"{parent}.") for item in returned_categories)
+            if not matches_category:
+                continue
+
+            geometry = feature.get("geometry")
+            coordinates = geometry.get("coordinates") if isinstance(geometry, dict) else None
+            try:
+                lat_value = properties.get("lat")
+                lon_value = properties.get("lon")
+                if lat_value is None:
+                    lat_value = coordinates[1]
+                if lon_value is None:
+                    lon_value = coordinates[0]
+                lat = float(lat_value)
+                lon = float(lon_value)
+                if not (math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
+                    continue
+                distance_value = properties.get("distance")
+                distance = round(float(distance_value)) if distance_value is not None else haversine_m(latitude, longitude, lat, lon)
+                if not math.isfinite(float(distance)) or distance < 0 or distance > radius_m:
+                    continue
+                identifier, source = _geoapify_identifier(properties)
+                if not identifier:
+                    continue
+            except (ValueError, TypeError, IndexError, KeyError, OverflowError):
+                continue
+
+            name_value = properties.get("name")
+            results.append(NearbyPlace(
+                osm_id=identifier,
+                source=source,
+                name=name_value.strip() if isinstance(name_value, str) and name_value.strip() else None,
+                category=category,
+                latitude=lat,
+                longitude=lon,
+                distance_m=distance,
+                address=_geoapify_address(properties),
+            ))
+        results.sort(key=lambda place: place.distance_m)
+        return results[:30]
+
+
 class OverpassPlacesProvider:
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
@@ -272,6 +452,7 @@ class OverpassPlacesProvider:
 
 
 _overpass = OverpassPlacesProvider()
+_geoapify = GeoapifyPlacesProvider()
 
 
 def get_places_provider() -> PlacesProvider:
@@ -280,4 +461,6 @@ def get_places_provider() -> PlacesProvider:
         return _overpass
     if provider == "postgis":
         return PostGISPlacesProvider()
+    if provider == "geoapify":
+        return _geoapify
     raise PlacesUnavailable

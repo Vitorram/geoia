@@ -17,8 +17,9 @@ async def nearby_places(
     params: Annotated[NearbyPlacesRequest, Query()],
     _current_user: User = Depends(get_current_user),
 ) -> NearbyPlacesResponse:
+    provider = get_places_provider()
     try:
-        results = await get_places_provider().nearby(
+        results = await provider.nearby(
             params.latitude, params.longitude, params.category, params.radius_m,
         )
     except PlacesRateLimited as exc:
@@ -44,4 +45,4 @@ async def nearby_places(
             detail="O serviço de busca de lugares está indisponível. Tente novamente.",
             headers=headers,
         ) from None
-    return NearbyPlacesResponse(results=results)
+    return NearbyPlacesResponse(results=results, attribution=getattr(provider, "attribution", None))

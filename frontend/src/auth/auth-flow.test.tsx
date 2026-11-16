@@ -70,7 +70,7 @@ describe('fluxo de autenticação do GeoIA', () => {
     await user.type(screen.getByLabelText('Senha'), 'senha-segura')
     await user.click(screen.getByRole('button', { name: /entrar na plataforma/i }))
 
-    expect(await screen.findByRole('heading', { name: 'Olá, Ada.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Olá, Ada/ })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/auth/login')
     expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/users/me')
@@ -91,7 +91,7 @@ describe('fluxo de autenticação do GeoIA', () => {
     await user.click(screen.getByRole('button', { name: /entrar na plataforma/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('E-mail ou senha não conferem.')
-    expect(screen.queryByRole('heading', { name: 'Olá, Ada.' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Olá, Ada/ })).not.toBeInTheDocument()
   })
 
   it('valida senha mínima e confirmação no cadastro', async () => {
@@ -162,7 +162,7 @@ describe('fluxo de autenticação do GeoIA', () => {
     await user.type(screen.getByLabelText('E-mail'), 'ada@example.com')
     await user.type(screen.getByLabelText('Senha'), 'senha-segura')
     await user.click(screen.getByRole('button', { name: /entrar na plataforma/i }))
-    await screen.findByRole('heading', { name: 'Olá, Ada.' })
+    await screen.findByRole('heading', { name: /Olá, Ada/ })
     await user.click(screen.getByRole('button', { name: /sair/i }))
 
     expect(await screen.findByRole('heading', { name: /bom ter você/i })).toBeInTheDocument()

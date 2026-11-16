@@ -6,14 +6,15 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { ApiError, authApi, type GeocodeResult, type LoginCredentials, type NearbyPlace, type PlaceCategory, type PublicUser } from '../lib/api'
+import { ApiError, authApi, type AISearchResult, type GeocodeResult, type LoginCredentials, type NearbyPlacesResponse, type PlaceCategory, type PublicUser } from '../lib/api'
 
 interface AuthContextValue {
   user: PublicUser | null
   login: (credentials: LoginCredentials) => Promise<void>
   logout: () => void
   searchLocations: (query: string) => Promise<GeocodeResult[]>
-  searchNearby: (latitude: number, longitude: number, category: PlaceCategory, radius: number) => Promise<NearbyPlace[]>
+  searchNearby: (latitude: number, longitude: number, category: PlaceCategory, radius: number) => Promise<NearbyPlacesResponse>
+  aiSearch: (message: string, location: { latitude: number; longitude: number } | null) => Promise<AISearchResult>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -51,12 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const searchNearby = useCallback(async (latitude: number, longitude: number, category: PlaceCategory, radius: number) => {
     if (!accessToken) throw new ApiError('Entre novamente para buscar lugares.', 401)
-    return (await authApi.nearby(latitude, longitude, category, radius, accessToken)).results
+    return authApi.nearby(latitude, longitude, category, radius, accessToken)
+  }, [accessToken])
+
+  const aiSearch = useCallback(async (message: string, location: { latitude: number; longitude: number } | null) => {
+    if (!accessToken) throw new ApiError('Entre novamente para usar a busca por IA.', 401)
+    return authApi.aiSearch(message, location, accessToken)
   }, [accessToken])
 
   const value = useMemo(
-    () => ({ user: accessToken ? user : null, login, logout, searchLocations, searchNearby }),
-    [accessToken, user, login, logout, searchLocations, searchNearby],
+    () => ({ user: accessToken ? user : null, login, logout, searchLocations, searchNearby, aiSearch }),
+    [accessToken, user, login, logout, searchLocations, searchNearby, aiSearch],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

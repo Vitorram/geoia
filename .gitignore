@@ -1,6 +1,9 @@
 # Python
 __pycache__/
 .pytest_cache/
+# Per-run pytest artifacts created by local test commands
+backend/.pytest*/
+backend/.test-tmp/
 *.py[cod]
 *.pyd
 *.so
@@ -26,6 +29,9 @@ pnpm-debug.log*
 *.pem
 *.key
 secrets/
+
+# Regional OSM extracts are kept locally and obtained outside Git history
+data/osm/*.osm.pbf
 
 # Editors and OS
 .vscode/

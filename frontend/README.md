@@ -35,3 +35,14 @@ npm run build
 No dashboard, a seção **Explorar localização** consulta a busca pontual de endereço do backend autenticado ou, após clique em **Usar minha localização**, solicita permissão ao navegador. A posição selecionada existe apenas no estado da página.
 
 Em **Explorar localização**, selecione um endereço ou GPS e use **Encontrar lugares próximos** para escolher uma categoria e um raio de até 5 km. Os resultados vêm do OpenStreetMap/Overpass e podem não estar completos ou conter nomes/endereço; não são persistidos.
+
+### Alternar backend local do Vite
+
+O proxy encaminha `/api/*` para `VITE_API_PROXY_TARGET`. O padrão do `vite.config.ts` é `http://127.0.0.1:8000`; o arquivo `.env.example` também usa essa porta. Para apontar apenas este checkout ao backend da porta 8001, configure `frontend/.env.local` assim:
+
+```dotenv
+VITE_API_BASE_URL=/api
+VITE_API_PROXY_TARGET=http://127.0.0.1:8001
+```
+
+Para voltar a usar a porta 8000, troque o valor por `http://127.0.0.1:8000`. Reinicie o Vite depois de alterar variáveis `VITE_*`; `.env.local` é ignorado pelo Git. Essas variáveis contêm apenas URLs locais, nunca chaves ou tokens.

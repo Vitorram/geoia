@@ -32,7 +32,7 @@ def test_valid_categories_call_provider(place_client, monkeypatch: pytest.Monkey
     client, headers = place_client
     response = client.get("/api/v1/places/nearby", params={"latitude": -23.73, "longitude": -45.42, "category": category}, headers=headers)
     assert response.status_code == 200
-    assert response.json() == {"results": []}
+    assert response.json() == {"results": [], "attribution": None}
 
 
 @pytest.mark.parametrize("params", [

@@ -20,6 +20,12 @@ from app.main import app
 from app.core.config import settings
 
 
+@pytest.fixture(autouse=True)
+def default_tests_to_mocked_places_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Avoid contacting a live places provider unless a test explicitly replaces it."""
+    monkeypatch.setattr(settings, "places_provider", "overpass")
+
+
 @pytest.fixture
 def api_client(tmp_path: Path) -> Iterator[tuple[TestClient, sessionmaker[Session]]]:
     test_db_path = tmp_path / "geoia_test.sqlite3"

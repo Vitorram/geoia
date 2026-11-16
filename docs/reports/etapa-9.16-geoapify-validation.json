@@ -1,0 +1,42 @@
+﻿{
+    "etapa":  "9.16",
+    "generated_at_utc":  "2026-11-16T17:48:07.8165536Z",
+    "provider_configured_in_env":  "geoapify",
+    "api_key_present":  true,
+    "api_key_value_recorded":  false,
+    "env_git_ignored":  true,
+    "active_backend":  {
+                           "port":  8000,
+                           "process_name":  "python.exe",
+                           "started_before_provider_change":  true,
+                           "provider_loaded":  "unconfirmed",
+                           "official_launcher_ownership":  "unconfirmed",
+                           "restarted":  false
+                       },
+    "health":  {
+                   "api_http_status":  200,
+                   "database_http_status":  200
+               },
+    "real_geoapify_request":  {
+                                  "attempted":  false,
+                                  "reason":  "A instância ativa iniciou antes da alteração de PLACES_PROVIDER e não foi possível associá-la com segurança ao iniciador oficial; consulta adiada para evitar validar configuração possivelmente antiga.",
+                                  "status_http":  null,
+                                  "duration_ms":  null,
+                                  "result_count":  null,
+                                  "failure_type":  "not_attempted",
+                                  "retry_count":  0
+                              },
+    "attribution":  {
+                        "geoapify_and_openstreetmap_links_present":  true
+                    },
+    "normalization":  {
+                          "adapter_existing":  true,
+                          "verified_with_mocked_tests":  true
+                      },
+    "tests":  {
+                  "backend_geoapify":  "18 passed",
+                  "frontend_location_explorer":  "3 passed",
+                  "external_calls":  false
+              },
+    "conclusion":  "Consulta real pendente: reinicie o backend pelo procedimento oficial e depois autorize uma chamada única."
+}
